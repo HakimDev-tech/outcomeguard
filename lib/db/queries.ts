@@ -6,10 +6,7 @@ import type {
   DatabaseRequirement,
   DatabaseResource,
 } from "@/lib/db/schema";
-import type {
-  Requirement,
-  ResourceType,
-} from "@/types/analysis";
+import type { Requirement, ResourceType, CoverageResult } from "@/types/analysis";
 import { AppError } from "@/lib/utils/errors";
 /* ============================================================
    GOALS
@@ -366,4 +363,28 @@ export async function getEvidenceByRequirementId(
   }
 
   return (data ?? []) as DatabaseEvidence[];
+}
+
+
+export async function updateResource(resourceId: string, input: {
+  title?: string; author?: string; url?: string; content?: string; status?: DatabaseResource["status"]; error?: string | null;
+}): Promise<DatabaseResource> {
+  const payload: Record<string, unknown> = {};
+  if (input.title !== undefined) payload.title = input.title;
+  if (input.author !== undefined) payload.author = input.author;
+  if (input.url !== undefined) payload.url = input.url;
+  if (input.content !== undefined) payload.content = input.content;
+  if (input.status !== undefined) payload.status = input.status;
+  if (input.error !== undefined) { payload.error_code = input.error ? "RESOURCE_ERROR" : null; payload.error_message = input.error ?? null; }
+  const {data,error}=await supabaseAdmin.from("resources").update(payload).eq("id",resourceId).select().single();
+  if(error) throw new AppError("DATABASE_ERROR", "Failed to update resource.", {statusCode:502,cause:error});
+  return data as DatabaseResource;
+}
+
+export async function createCoverageResults(analysisId: string, results: CoverageResult[]) {
+  if (!results.length) return [];
+  const rows=results.map(result=>({analysis_id:analysisId,requirement_id:result.requirementId,status:result.status,confidence:result.confidence,explanation:result.explanation,missing_concepts:result.missingConcepts}));
+  const {data,error}=await supabaseAdmin.from("coverage_results").insert(rows).select();
+  if(error) throw new AppError("DATABASE_ERROR","Failed to create coverage results.",{statusCode:502,cause:error});
+  return data ?? [];
 }
