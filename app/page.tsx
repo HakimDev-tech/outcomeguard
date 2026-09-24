@@ -37,7 +37,7 @@ export default function HomePage() {
           <p>Build a production-ready Next.js CRUD application.</p>
           <div className="og-note-line" />
           <div className="og-note-row">✓ CRUD + database</div>
-          <div className="og-note-row"><Check size={15} /> Authentication</div>
+          <div className="og-note-row">✓ Authentication</div>
           <div className="og-note-row og-note-missing">× Testing is not covered</div>
           <div className="og-note-footer">VERDICT · NOT SUFFICIENT</div>
         </div>
