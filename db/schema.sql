@@ -489,3 +489,39 @@ alter table coverage_evidence enable row level security;
 -- When authentication is introduced, policies must be added
 -- based on ownership/user_id relationships.
 -- ============================================================
+create or replace function match_resource_chunks(
+  query_embedding vector(1536),
+  match_resource_id uuid default null,
+  match_threshold float default 0.35,
+  match_count int default 8
+)
+returns table (
+  id uuid,
+  resource_id uuid,
+  chunk_index integer,
+  content text,
+  start_char integer,
+  end_char integer,
+  similarity float
+)
+language sql
+stable
+as $$
+  select
+    rc.id,
+    rc.resource_id,
+    rc.chunk_index,
+    rc.content,
+    rc.start_char,
+    rc.end_char,
+    1 - (rc.embedding <=> query_embedding) as similarity
+  from resource_chunks rc
+  where
+    (match_resource_id is null
+      or rc.resource_id = match_resource_id)
+    and rc.embedding is not null
+    and 1 - (rc.embedding <=> query_embedding)
+      >= match_threshold
+  order by rc.embedding <=> query_embedding
+  limit least(match_count, 50);
+$$;
