@@ -4,6 +4,10 @@
 -- PostgreSQL / Supabase
 -- ============================================================
 
+-- ============================================================
+-- EXTENSIONS
+-- ============================================================
+
 create extension if not exists vector;
 
 -- ============================================================
@@ -477,18 +481,9 @@ alter table coverage_results enable row level security;
 alter table coverage_evidence enable row level security;
 
 -- ============================================================
--- MVP NOTE
+-- RAG RPC
 -- ============================================================
---
--- Authentication is intentionally not implemented yet.
---
--- Therefore, no public RLS policies are created here.
--- Server-side operations will use the Supabase service role
--- where appropriate.
---
--- When authentication is introduced, policies must be added
--- based on ownership/user_id relationships.
--- ============================================================
+
 create or replace function match_resource_chunks(
   query_embedding vector(1536),
   match_resource_id uuid default null,
@@ -512,16 +507,32 @@ as $$
     rc.resource_id,
     rc.chunk_index,
     rc.content,
-    rc.start_char,
-    rc.end_char,
+    rc.start_position as start_char,
+    rc.end_position as end_char,
     1 - (rc.embedding <=> query_embedding) as similarity
   from resource_chunks rc
   where
-    (match_resource_id is null
-      or rc.resource_id = match_resource_id)
+    (
+      match_resource_id is null
+      or rc.resource_id = match_resource_id
+    )
     and rc.embedding is not null
     and 1 - (rc.embedding <=> query_embedding)
       >= match_threshold
   order by rc.embedding <=> query_embedding
   limit least(match_count, 50);
 $$;
+
+-- ============================================================
+-- MVP NOTE
+-- ============================================================
+--
+-- Authentication is intentionally not implemented yet.
+--
+-- Therefore, no public RLS policies are created here.
+-- Server-side operations will use the Supabase service role
+-- where appropriate.
+--
+-- When authentication is introduced, policies must be added
+-- based on ownership/user_id relationships.
+-- ============================================================
