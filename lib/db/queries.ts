@@ -7,25 +7,136 @@ import type {
   DatabaseResource,
   DatabaseResourceChunk,
 } from "@/lib/db/schema";
-import type { Requirement, CoverageResult } from "@/types/analysis";
+import type { Analysis, Requirement, CoverageResult } from "@/types/analysis";
 import type { ResourceType } from "@/types/resource";
 import { AppError } from "@/lib/utils/errors";
 /* ============================================================
    GOALS
    ============================================================ */
 
-export async function getRecentAnalyses(limit = 20) {
+export async function getRecentAnalyses(limit = 20): Promise<Analysis[]> {
   const { data, error } = await supabaseAdmin
     .from("analyses")
-    .select("*")
+    .select(`
+      *,
+      goals (
+        id,
+        statement,
+        requirements (*)
+      ),
+      resources (
+        id,
+        title
+      ),
+      coverage_results (*)
+    `)
     .order("created_at", { ascending: false })
     .limit(Math.min(limit, 100));
 
   if (error) {
-    throw new AppError("DATABASE_ERROR", "Failed to fetch recent analyses.", { statusCode: 500, cause: error });
+    throw new AppError(
+      "DATABASE_ERROR",
+      "Failed to fetch analysis history.",
+      { statusCode: 500, cause: error },
+    );
   }
 
-  return data ?? [];
+  return (data ?? []).map(mapAnalysisRow);
+}
+
+export async function getAnalysisDetails(analysisId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("analyses")
+    .select(`
+      *,
+      goals (
+        id,
+        statement,
+        context,
+        requirements (*)
+      ),
+      resources (
+        id,
+        title,
+        type,
+        url,
+        author,
+        duration_seconds
+      ),
+      coverage_results (*),
+      evidence (*)
+    `)
+    .eq("id", analysisId)
+    .maybeSingle();
+
+  if (error) {
+    throw new AppError(
+      "DATABASE_ERROR",
+      "Failed to fetch analysis.",
+      { statusCode: 500, cause: error },
+    );
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return {
+    analysis: mapAnalysisRow(data),
+    goal: data.goals,
+    resource: data.resources,
+    coverageResults: data.coverage_results ?? [],
+    evidence: data.evidence ?? [],
+  };
+}
+
+function mapAnalysisRow(row: any): Analysis {
+  const goal = row.goals;
+  const requirements = (goal?.requirements ?? []).map((item: any) => ({
+    id: item.id,
+    description: item.description,
+    rationale: item.rationale,
+    importance: item.importance,
+    keywords: item.keywords ?? [],
+    expectedConcepts: item.expected_concepts ?? [],
+  }));
+
+  const coverageResults = (row.coverage_results ?? []).map((item: any) => ({
+    requirementId: item.requirement_id,
+    status: item.status,
+    confidence: item.confidence,
+    evidence: [],
+    explanation: item.explanation,
+    missingConcepts: item.missing_concepts ?? [],
+  }));
+
+  return {
+    id: row.id,
+    goalId: row.goal_id,
+    resourceId: row.resource_id,
+    status: row.status,
+    requirements,
+    coverageResults,
+    verdict: row.verdict ?? undefined,
+    summary: row.summary ?? undefined,
+    recommendation: row.recommendation_action
+      ? {
+          action: row.recommendation_action,
+          reason: row.recommendation_reason ?? "",
+          missingTopics: row.missing_topics ?? [],
+        }
+      : undefined,
+    resourceDurationSeconds: row.resource_duration_seconds ?? undefined,
+    relevantDurationSeconds: row.relevant_duration_seconds ?? undefined,
+    createdAt: row.created_at,
+    completedAt: row.completed_at ?? undefined,
+    error: row.error_code
+      ? {
+          code: row.error_code,
+          message: row.error_message ?? "Analysis failed.",
+        }
+      : undefined,
+  };
 }
 export async function createGoal(input: {
   statement: string;
