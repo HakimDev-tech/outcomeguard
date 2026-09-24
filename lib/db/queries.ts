@@ -63,8 +63,7 @@ export async function getAnalysisDetails(analysisId: string) {
         author,
         duration_seconds
       ),
-      coverage_results (*),
-      evidence (*)
+      coverage_results (*)
     `)
     .eq("id", analysisId)
     .maybeSingle();
@@ -81,12 +80,26 @@ export async function getAnalysisDetails(analysisId: string) {
     return null;
   }
 
+  const { data: evidence, error: evidenceError } = await supabaseAdmin
+    .from("evidence")
+    .select("*")
+    .eq("resource_id", data.resource_id)
+    .order("created_at", { ascending: true });
+
+  if (evidenceError) {
+    throw new AppError(
+      "DATABASE_ERROR",
+      "Failed to fetch analysis evidence.",
+      { statusCode: 500, cause: evidenceError },
+    );
+  }
+
   return {
     analysis: mapAnalysisRow(data),
     goal: data.goals,
     resource: data.resources,
     coverageResults: data.coverage_results ?? [],
-    evidence: data.evidence ?? [],
+    evidence: evidence ?? [],
   };
 }
 
