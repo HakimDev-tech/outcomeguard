@@ -135,6 +135,11 @@ export const createResourceSchema = z
         "Resource title must not exceed 500 characters."
       ),
 
+    content: z
+      .string()
+      .trim()
+      .optional(),
+
     author: z
       .string()
       .trim()
