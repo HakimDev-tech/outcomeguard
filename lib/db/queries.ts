@@ -1,1 +1,351 @@
-export {};
+import { supabaseAdmin } from "@/lib/db/client";
+import type {
+  DatabaseAnalysis,
+  DatabaseEvidence,
+  DatabaseGoal,
+  DatabaseRequirement,
+  DatabaseResource,
+} from "@/lib/db/schema";
+import type {
+  Requirement,
+  ResourceType,
+} from "@/types/analysis";
+
+/* ============================================================
+   GOALS
+   ============================================================ */
+
+export async function createGoal(input: {
+  statement: string;
+  context?: string;
+}): Promise<DatabaseGoal> {
+  const { data, error } = await supabaseAdmin
+    .from("goals")
+    .insert({
+      statement: input.statement,
+      context: input.context ?? null,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to create goal: ${error.message}`);
+  }
+
+  return data as DatabaseGoal;
+}
+
+export async function getGoalById(
+  goalId: string
+): Promise<DatabaseGoal | null> {
+  const { data, error } = await supabaseAdmin
+    .from("goals")
+    .select("*")
+    .eq("id", goalId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to fetch goal: ${error.message}`);
+  }
+
+  return data as DatabaseGoal | null;
+}
+
+/* ============================================================
+   RESOURCES
+   ============================================================ */
+
+export async function createResource(input: {
+  type: ResourceType;
+  url?: string;
+  title: string;
+  author?: string;
+}): Promise<DatabaseResource> {
+  const { data, error } = await supabaseAdmin
+    .from("resources")
+    .insert({
+      type: input.type,
+      url: input.url ?? null,
+      title: input.title,
+      author: input.author ?? null,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(
+      `Failed to create resource: ${error.message}`
+    );
+  }
+
+  return data as DatabaseResource;
+}
+
+export async function getResourceById(
+  resourceId: string
+): Promise<DatabaseResource | null> {
+  const { data, error } = await supabaseAdmin
+    .from("resources")
+    .select("*")
+    .eq("id", resourceId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `Failed to fetch resource: ${error.message}`
+    );
+  }
+
+  return data as DatabaseResource | null;
+}
+
+export async function updateResourceStatus(
+  resourceId: string,
+  status: DatabaseResource["status"],
+  errorDetails?: {
+    code: string;
+    message: string;
+  }
+): Promise<DatabaseResource> {
+  const { data, error } = await supabaseAdmin
+    .from("resources")
+    .update({
+      status,
+      error_code: errorDetails?.code ?? null,
+      error_message: errorDetails?.message ?? null,
+    })
+    .eq("id", resourceId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(
+      `Failed to update resource status: ${error.message}`
+    );
+  }
+
+  return data as DatabaseResource;
+}
+
+/* ============================================================
+   RESOURCE CHUNKS
+   ============================================================ */
+
+export async function createResourceChunks(
+  chunks: Array<{
+    resourceId: string;
+    content: string;
+    chunkIndex: number;
+    startPosition?: number;
+    endPosition?: number;
+    location?: string;
+    embedding?: number[];
+  }>
+): Promise<void> {
+  if (chunks.length === 0) {
+    return;
+  }
+
+  const rows = chunks.map((chunk) => ({
+    resource_id: chunk.resourceId,
+    content: chunk.content,
+    chunk_index: chunk.chunkIndex,
+    start_position: chunk.startPosition ?? null,
+    end_position: chunk.endPosition ?? null,
+    location: chunk.location ?? null,
+    embedding: chunk.embedding ?? null,
+  }));
+
+  const { error } = await supabaseAdmin
+    .from("resource_chunks")
+    .insert(rows);
+
+  if (error) {
+    throw new Error(
+      `Failed to create resource chunks: ${error.message}`
+    );
+  }
+}
+
+/* ============================================================
+   REQUIREMENTS
+   ============================================================ */
+
+export async function createRequirements(
+  goalId: string,
+  requirements: Requirement[]
+): Promise<DatabaseRequirement[]> {
+  if (requirements.length === 0) {
+    return [];
+  }
+
+  const rows = requirements.map((requirement, index) => ({
+    id: requirement.id,
+    goal_id: goalId,
+    description: requirement.description,
+    rationale: requirement.rationale,
+    importance: requirement.importance,
+    keywords: requirement.keywords,
+    expected_concepts: requirement.expectedConcepts,
+    position: index,
+  }));
+
+  const { data, error } = await supabaseAdmin
+    .from("requirements")
+    .insert(rows)
+    .select();
+
+  if (error) {
+    throw new Error(
+      `Failed to create requirements: ${error.message}`
+    );
+  }
+
+  return (data ?? []) as DatabaseRequirement[];
+}
+
+export async function getRequirementsByGoalId(
+  goalId: string
+): Promise<DatabaseRequirement[]> {
+  const { data, error } = await supabaseAdmin
+    .from("requirements")
+    .select("*")
+    .eq("goal_id", goalId)
+    .order("position", { ascending: true });
+
+  if (error) {
+    throw new Error(
+      `Failed to fetch requirements: ${error.message}`
+    );
+  }
+
+  return (data ?? []) as DatabaseRequirement[];
+}
+
+/* ============================================================
+   ANALYSES
+   ============================================================ */
+
+export async function createAnalysis(input: {
+  goalId: string;
+  resourceId: string;
+}): Promise<DatabaseAnalysis> {
+  const { data, error } = await supabaseAdmin
+    .from("analyses")
+    .insert({
+      goal_id: input.goalId,
+      resource_id: input.resourceId,
+      status: "pending",
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(
+      `Failed to create analysis: ${error.message}`
+    );
+  }
+
+  return data as DatabaseAnalysis;
+}
+
+export async function getAnalysisById(
+  analysisId: string
+): Promise<DatabaseAnalysis | null> {
+  const { data, error } = await supabaseAdmin
+    .from("analyses")
+    .select("*")
+    .eq("id", analysisId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `Failed to fetch analysis: ${error.message}`
+    );
+  }
+
+  return data as DatabaseAnalysis | null;
+}
+
+export async function updateAnalysis(
+  analysisId: string,
+  input: Partial<{
+    status: DatabaseAnalysis["status"];
+    verdict: DatabaseAnalysis["verdict"];
+    summary: string;
+    recommendation_action: DatabaseAnalysis["recommendation_action"];
+    recommendation_reason: string;
+    missing_topics: string[];
+    resource_duration_seconds: number;
+    relevant_duration_seconds: number;
+    error_code: string;
+    error_message: string;
+    completed_at: string;
+  }>
+): Promise<DatabaseAnalysis> {
+  const { data, error } = await supabaseAdmin
+    .from("analyses")
+    .update(input)
+    .eq("id", analysisId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(
+      `Failed to update analysis: ${error.message}`
+    );
+  }
+
+  return data as DatabaseAnalysis;
+}
+
+/* ============================================================
+   EVIDENCE
+   ============================================================ */
+
+export async function createEvidence(
+  input: Omit<DatabaseEvidence, "id" | "created_at">
+): Promise<DatabaseEvidence> {
+  const { data, error } = await supabaseAdmin
+    .from("evidence")
+    .insert({
+      resource_id: input.resource_id,
+      requirement_id: input.requirement_id,
+      content: input.content,
+      type: input.type,
+      relevance: input.relevance,
+      similarity: input.similarity,
+      start_position: input.start_position,
+      end_position: input.end_position,
+      location: input.location,
+      confidence: input.confidence,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(
+      `Failed to create evidence: ${error.message}`
+    );
+  }
+
+  return data as DatabaseEvidence;
+}
+
+export async function getEvidenceByRequirementId(
+  requirementId: string
+): Promise<DatabaseEvidence[]> {
+  const { data, error } = await supabaseAdmin
+    .from("evidence")
+    .select("*")
+    .eq("requirement_id", requirementId)
+    .order("confidence", { ascending: false });
+
+  if (error) {
+    throw new Error(
+      `Failed to fetch evidence: ${error.message}`
+    );
+  }
+
+  return (data ?? []) as DatabaseEvidence[];
+}
