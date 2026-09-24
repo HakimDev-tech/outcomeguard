@@ -178,19 +178,15 @@ export async function POST(request: NextRequest) {
           proposedVerdict.recommendation,
       });
 
-    const completed =
-      await updateAnalysis(
-        analysis.id,
-        {
-          status: "completed",
-          verdict: verification.verdict,
-          recommendation:
-            verification.recommendation,
-          summary: verification.explanation,
-          completedAt:
-            new Date().toISOString(),
-        },
-      );
+    const completed = await updateAnalysis(analysis.id, {
+      status: "completed",
+      verdict: verification.verdict,
+      recommendation_action: verification.recommendation.action,
+      recommendation_reason: verification.recommendation.reason,
+      missing_topics: verification.recommendation.missingTopics,
+      summary: verification.explanation,
+      completed_at: new Date().toISOString(),
+    });
 
     return NextResponse.json(
       {
