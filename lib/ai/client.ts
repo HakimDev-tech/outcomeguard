@@ -101,7 +101,6 @@ export async function generateText(
     const generationConfig: Record<string, unknown> = {
       maxOutputTokens: options.maxOutputTokens ?? 5000,
       responseMimeType: "application/json",
-      thinkingConfig: { thinkingLevel: "low" },
     };
 
     if (options.responseSchema) {
