@@ -10,7 +10,7 @@ import type {
   Requirement,
   ResourceType,
 } from "@/types/analysis";
-
+import { AppError } from "@/lib/utils/errors";
 /* ============================================================
    GOALS
    ============================================================ */
