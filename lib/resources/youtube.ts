@@ -1,223 +1,125 @@
-import {
-  externalServiceError,
-  resourceError,
-} from "@/lib/utils/errors";
+import { resourceError } from "@/lib/utils/errors";
 
-export interface YouTubeMetadata {
-  videoId: string;
+export interface TextResourceInput {
   title: string;
+  content: string;
   author?: string;
-  durationSeconds?: number;
-  url: string;
+  url?: string;
 }
 
-export interface YouTubeResourceContent {
-  metadata: YouTubeMetadata;
-  transcript: string;
+export interface TextResourceContent {
+  title: string;
+  content: string;
+  author?: string;
+  url?: string;
+  characterCount: number;
+  wordCount: number;
 }
 
-const YOUTUBE_HOSTS = new Set([
-  "youtube.com",
-  "www.youtube.com",
-  "m.youtube.com",
-  "youtu.be",
-]);
+const DEFAULT_MAX_CHARACTERS = 500_000;
 
-function isYouTubeHost(hostname: string): boolean {
-  return YOUTUBE_HOSTS.has(hostname.toLowerCase());
-}
-
-export function extractYouTubeVideoId(input: string): string {
-  let url: URL;
-
-  try {
-    url = new URL(input);
-  } catch {
-    throw resourceError("Invalid YouTube URL.", {
-      url: input,
-    });
-  }
-
-  if (!isYouTubeHost(url.hostname)) {
-    throw resourceError("URL is not a supported YouTube URL.", {
-      hostname: url.hostname,
-    });
-  }
-
-  if (url.hostname === "youtu.be") {
-    const id = url.pathname.split("/").filter(Boolean)[0];
-
-    if (!id) {
-      throw resourceError("Could not extract YouTube video ID.");
-    }
-
-    return id;
-  }
-
-  const videoId = url.searchParams.get("v");
-
-  if (!videoId) {
-    throw resourceError("Could not extract YouTube video ID.");
-  }
-
-  return videoId;
-}
-
-function normalizeTranscript(text: string): string {
+function normalizeText(text: string): string {
   return text
     .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/\u0000/g, "")
     .replace(/[ \t]+/g, " ")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
-function assertNonEmpty(value: string, field: string): string {
-  const normalized = value.trim();
+function countWords(text: string): number {
+  if (!text.trim()) {
+    return 0;
+  }
+
+  return text.trim().split(/\s+/).length;
+}
+
+function validateTitle(title: string): string {
+  const normalized = title.trim();
 
   if (!normalized) {
-    throw resourceError(`YouTube ${field} is empty.`);
+    throw resourceError("Text resource title is required.");
+  }
+
+  if (normalized.length > 500) {
+    throw resourceError(
+      "Text resource title is too long.",
+      {
+        maxLength: 500,
+      },
+    );
   }
 
   return normalized;
 }
 
-/**
- * Fetches YouTube metadata and transcript.
- *
- * The actual external transcript provider is intentionally abstracted behind
- * environment variables so the application does not depend directly on a
- * specific third-party implementation.
- *
- * Required:
- *   YOUTUBE_TRANSCRIPT_API_URL
- *
- * Optional:
- *   YOUTUBE_TRANSCRIPT_API_KEY
- */
-export async function fetchYouTubeResource(
-  url: string,
-): Promise<YouTubeResourceContent> {
-  const videoId = extractYouTubeVideoId(url);
-
-  const transcriptApiUrl = process.env.YOUTUBE_TRANSCRIPT_API_URL;
-
-  if (!transcriptApiUrl) {
-    throw externalServiceError(
-      "YouTube transcript service is not configured.",
-      {
-        videoId,
-      },
-    );
+function validateUrl(url?: string): string | undefined {
+  if (!url) {
+    return undefined;
   }
-
-  const endpoint = new URL(transcriptApiUrl);
-
-  endpoint.searchParams.set("videoId", videoId);
-
-  const apiKey = process.env.YOUTUBE_TRANSCRIPT_API_KEY;
-
-  const headers: HeadersInit = {
-    Accept: "application/json",
-  };
-
-  if (apiKey) {
-    headers.Authorization = `Bearer ${apiKey}`;
-  }
-
-  let response: Response;
 
   try {
-    response = await fetch(endpoint.toString(), {
-      method: "GET",
-      headers,
-      signal: AbortSignal.timeout(30_000),
-      cache: "no-store",
-    });
-  } catch (error) {
-    throw externalServiceError(
-      "Failed to connect to the YouTube transcript service.",
-      {
-        videoId,
-        cause: error instanceof Error ? error.message : String(error),
-      },
-    );
-  }
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-
-    throw externalServiceError(
-      "YouTube transcript service returned an error.",
-      {
-        videoId,
-        status: response.status,
-        body: body.slice(0, 500),
-      },
-    );
-  }
-
-  let data: unknown;
-
-  try {
-    data = await response.json();
+    new URL(url);
+    return url;
   } catch {
-    throw externalServiceError(
-      "YouTube transcript service returned invalid JSON.",
-      {
-        videoId,
-      },
-    );
+    throw resourceError("Text resource URL is invalid.", {
+      url,
+    });
+  }
+}
+
+export function parseTextResource(
+  input: TextResourceInput,
+  maxCharacters = DEFAULT_MAX_CHARACTERS,
+): TextResourceContent {
+  const title = validateTitle(input.title);
+  const content = normalizeText(input.content);
+  const url = validateUrl(input.url);
+
+  if (!content) {
+    throw resourceError("Text resource content is empty.");
   }
 
-  if (!data || typeof data !== "object") {
-    throw externalServiceError(
-      "Invalid YouTube transcript response.",
-      {
-        videoId,
-      },
-    );
-  }
-
-  const payload = data as Record<string, unknown>;
-
-  const title =
-    typeof payload.title === "string"
-      ? payload.title
-      : `YouTube video ${videoId}`;
-
-  const author =
-    typeof payload.author === "string"
-      ? payload.author
-      : undefined;
-
-  const durationSeconds =
-    typeof payload.durationSeconds === "number" &&
-    Number.isFinite(payload.durationSeconds)
-      ? payload.durationSeconds
-      : undefined;
-
-  const transcript =
-    typeof payload.transcript === "string"
-      ? normalizeTranscript(payload.transcript)
-      : "";
-
-  if (!transcript) {
+  if (content.length > maxCharacters) {
     throw resourceError(
-      "No transcript is available for this YouTube video.",
+      "Text resource exceeds the maximum allowed size.",
       {
-        videoId,
+        characterCount: content.length,
+        maxCharacters,
       },
     );
   }
+
+  const author = input.author?.trim() || undefined;
 
   return {
-    metadata: {
-      videoId,
-      title: assertNonEmpty(title, "title"),
-      author,
-      durationSeconds,
-      url,
-    },
-    transcript,
+    title,
+    content,
+    author,
+    url,
+    characterCount: content.length,
+    wordCount: countWords(content),
+  };
+}
+
+export function normalizeResourceText(content: string): string {
+  return normalizeText(content);
+}
+
+export function getTextStatistics(content: string): {
+  characterCount: number;
+  wordCount: number;
+  lineCount: number;
+} {
+  const normalized = normalizeText(content);
+
+  return {
+    characterCount: normalized.length,
+    wordCount: countWords(normalized),
+    lineCount: normalized ? normalized.split("\n").length : 0,
   };
 }
