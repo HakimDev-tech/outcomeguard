@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Check, ChevronRight, Loader2, Sparkles } from "lucide-react";
 import { useState } from "react";
 import GoalForm from "@/components/forms/GoalForm";
 import ResourceForm from "@/components/forms/ResourceForm";
@@ -61,7 +60,7 @@ export default function AnalyzeWorkspace() {
               <h2>Define the goal</h2>
               <p>Describe the result you want to be able to achieve.</p>
             </div>
-            {goalId && <span className="og-complete"><Check size={14} /> Ready</span>}
+            {goalId && <span className="og-complete">✓ Ready</span>}
           </div>
 
           <GoalForm
@@ -76,8 +75,7 @@ export default function AnalyzeWorkspace() {
           {requirements.length > 0 && (
             <div className="og-requirements">
               <div className="og-requirements-title">
-                <Sparkles size={15} />
-                Requirements extracted
+                ✦ Requirements extracted
               </div>
               <div className="og-requirement-list">
                 {requirements.map((item, index) => (
@@ -136,13 +134,12 @@ export default function AnalyzeWorkspace() {
         >
           {analyzing ? (
             <>
-              <Loader2 size={17} className="animate-spin" />
-              Verifying…
+              ◌ Verifying…
             </>
           ) : (
             <>
               Analyze resource
-              <ChevronRight size={17} />
+              →
             </>
           )}
         </button>
