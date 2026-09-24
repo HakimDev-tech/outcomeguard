@@ -62,7 +62,6 @@ export async function evaluateCoverage(
         similarity: item.similarity,
       })),
     }),
-    temperature: 0,
     maxOutputTokens: 2500,
     responseSchema: coverageJsonSchema,
   });
