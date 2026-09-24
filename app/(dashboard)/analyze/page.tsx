@@ -1,5 +1,5 @@
-import { GoalForm } from "@/components/forms/GoalForm";
-import { ResourceForm } from "@/components/forms/ResourceForm";
+import GoalForm from "@/components/forms/GoalForm";
+import ResourceForm from "@/components/forms/ResourceForm";
 
 export default function AnalyzePage() {
   return (
