@@ -19,13 +19,15 @@ const goalParserResponseSchema = z.object({
   ).min(3).max(12),
 });
 
+// Keep the provider schema intentionally simple.
+// Zod performs the application-level bounds validation after generation.
+// Gemini structured-output schemas with nested array length constraints can
+// exceed the provider's serving-state limit.
 const goalParserJsonSchema = {
   type: "OBJECT",
   properties: {
     requirements: {
       type: "ARRAY",
-      minItems: 3,
-      maxItems: 12,
       items: {
         type: "OBJECT",
         properties: {
@@ -38,12 +40,10 @@ const goalParserJsonSchema = {
           keywords: {
             type: "ARRAY",
             items: { type: "STRING" },
-            maxItems: 20,
           },
           expectedConcepts: {
             type: "ARRAY",
             items: { type: "STRING" },
-            maxItems: 20,
           },
         },
         required: [
