@@ -1,125 +1,88 @@
-import { resourceError } from "@/lib/utils/errors";
+import { resourceError, externalServiceError } from "@/lib/utils/errors";
 
-export interface TextResourceInput {
-  title: string;
-  content: string;
-  author?: string;
-  url?: string;
-}
-
-export interface TextResourceContent {
-  title: string;
-  content: string;
-  author?: string;
-  url?: string;
-  characterCount: number;
-  wordCount: number;
-}
-
-const DEFAULT_MAX_CHARACTERS = 500_000;
-
-function normalizeText(text: string): string {
-  return text
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "\n")
-    .replace(/\u0000/g, "")
-    .replace(/[ \t]+/g, " ")
-    .replace(/\n[ \t]+/g, "\n")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-function countWords(text: string): number {
-  if (!text.trim()) {
-    return 0;
-  }
-
-  return text.trim().split(/\s+/).length;
-}
-
-function validateTitle(title: string): string {
-  const normalized = title.trim();
-
-  if (!normalized) {
-    throw resourceError("Text resource title is required.");
-  }
-
-  if (normalized.length > 500) {
-    throw resourceError(
-      "Text resource title is too long.",
-      {
-        maxLength: 500,
-      },
-    );
-  }
-
-  return normalized;
-}
-
-function validateUrl(url?: string): string | undefined {
-  if (!url) {
-    return undefined;
-  }
-
-  try {
-    new URL(url);
-    return url;
-  } catch {
-    throw resourceError("Text resource URL is invalid.", {
-      url,
-    });
-  }
-}
-
-export function parseTextResource(
-  input: TextResourceInput,
-  maxCharacters = DEFAULT_MAX_CHARACTERS,
-): TextResourceContent {
-  const title = validateTitle(input.title);
-  const content = normalizeText(input.content);
-  const url = validateUrl(input.url);
-
-  if (!content) {
-    throw resourceError("Text resource content is empty.");
-  }
-
-  if (content.length > maxCharacters) {
-    throw resourceError(
-      "Text resource exceeds the maximum allowed size.",
-      {
-        characterCount: content.length,
-        maxCharacters,
-      },
-    );
-  }
-
-  const author = input.author?.trim() || undefined;
-
-  return {
-    title,
-    content,
-    author,
-    url,
-    characterCount: content.length,
-    wordCount: countWords(content),
+export interface YouTubeResource {
+  metadata: {
+    title: string;
+    author?: string;
+    url: string;
   };
+  transcript: string;
 }
 
-export function normalizeResourceText(content: string): string {
-  return normalizeText(content);
+interface TranscriptResponse {
+  title?: string;
+  author?: string;
+  transcript?: string;
+  text?: string;
 }
 
-export function getTextStatistics(content: string): {
-  characterCount: number;
-  wordCount: number;
-  lineCount: number;
-} {
-  const normalized = normalizeText(content);
+function extractVideoId(url: string): string {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, "");
+
+    if (host === "youtu.be") {
+      const id = parsed.pathname.slice(1).split("/")[0];
+      if (id) return id;
+    }
+
+    if (host === "youtube.com" || host === "m.youtube.com") {
+      const queryId = parsed.searchParams.get("v");
+      if (queryId) return queryId;
+
+      const match = parsed.pathname.match(/\/shorts\/([^/]+)/);
+      if (match?.[1]) return match[1];
+    }
+  } catch {
+    throw resourceError("Invalid YouTube URL.");
+  }
+
+  throw resourceError("Could not extract a YouTube video ID from the URL.");
+}
+
+export async function fetchYouTubeResource(url: string): Promise<YouTubeResource> {
+  const videoId = extractVideoId(url);
+  const endpoint = process.env.YOUTUBE_TRANSCRIPT_API_URL;
+
+  if (!endpoint) {
+    throw externalServiceError("YouTube transcript service is not configured.");
+  }
+
+  const apiUrl = new URL(endpoint);
+  apiUrl.searchParams.set("video_id", videoId);
+
+  const apiKey = process.env.YOUTUBE_TRANSCRIPT_API_KEY;
+  const headers: HeadersInit = { Accept: "application/json" };
+
+  if (apiKey) {
+    headers.Authorization = `Bearer ${apiKey}`;
+  }
+
+  const response = await fetch(apiUrl, {
+    method: "GET",
+    headers,
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw externalServiceError(
+      `YouTube transcript service returned HTTP ${response.status}.`,
+    );
+  }
+
+  const data = (await response.json()) as TranscriptResponse;
+  const transcript = (data.transcript ?? data.text ?? "").trim();
+
+  if (!transcript) {
+    throw externalServiceError("YouTube transcript service returned no transcript.");
+  }
 
   return {
-    characterCount: normalized.length,
-    wordCount: countWords(normalized),
-    lineCount: normalized ? normalized.split("\n").length : 0,
+    metadata: {
+      title: data.title?.trim() || `YouTube video ${videoId}`,
+      author: data.author?.trim() || undefined,
+      url,
+    },
+    transcript,
   };
 }
