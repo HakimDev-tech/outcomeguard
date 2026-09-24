@@ -37,7 +37,7 @@ const DEFAULT_MIN_SIMILARITY = 0.35;
 
 function validateOptions(
   options: RetrievalOptions,
-): Required<RetrievalOptions> {
+): { resourceId?: string; limit: number; minSimilarity: number } {
   const limit = options.limit ?? DEFAULT_LIMIT;
   const minSimilarity =
     options.minSimilarity ??
