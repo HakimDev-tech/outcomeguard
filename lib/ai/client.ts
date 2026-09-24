@@ -2,8 +2,8 @@
  * OutcomeGuard
  * Central AI client
  *
- * Uses the Gemini REST API so the configured AI_API_KEY
- * is handled by the provider it belongs to.
+ * Uses the Gemini REST API with retry and model fallback
+ * for transient provider capacity failures.
  */
 
 import {
@@ -15,6 +15,7 @@ import {
 const DEFAULT_TIMEOUT_MS = 60_000;
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY_MS = 1_000;
+const DEFAULT_FALLBACK_MODEL = "gemini-3.7-flash";
 
 const GEMINI_API_URL =
   process.env.AI_API_URL ??
@@ -48,6 +49,8 @@ function getAIConfiguration() {
   return {
     apiKey: getRequiredEnvironmentVariable("AI_API_KEY"),
     model: getRequiredEnvironmentVariable("AI_MODEL"),
+    fallbackModel:
+      process.env.AI_FALLBACK_MODEL ?? DEFAULT_FALLBACK_MODEL,
   };
 }
 
@@ -91,16 +94,55 @@ async function requestWithRetry(
   return lastResponse;
 }
 
+async function generateWithModel(
+  model: string,
+  apiKey: string,
+  options: GenerateTextOptions,
+  signal: AbortSignal,
+): Promise<Response> {
+  const generationConfig: Record<string, number> = {
+    maxOutputTokens: options.maxOutputTokens ?? 3000,
+  };
+
+  return requestWithRetry(
+    `${GEMINI_API_URL}/models/${model}:generateContent`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [{ text: options.system }],
+        },
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: options.user }],
+          },
+        ],
+        generationConfig,
+      }),
+      signal,
+      cache: "no-store",
+    },
+    MAX_RETRIES,
+  );
+}
+
 /**
  * Generates text using Gemini generateContent.
  *
- * Transient provider errors (408, 429, and 5xx) are retried
- * with exponential backoff and jitter.
+ * 408, 429 and 5xx errors are retried with exponential backoff.
+ * A persistent 503 on the primary model falls back to a stable
+ * secondary Flash model.
  */
 export async function generateText(
   options: GenerateTextOptions,
 ): Promise<AIResponse> {
-  const { apiKey, model } = getAIConfiguration();
+  const { apiKey, model, fallbackModel } =
+    getAIConfiguration();
 
   const controller = new AbortController();
 
@@ -110,41 +152,35 @@ export async function generateText(
   );
 
   try {
-    const generationConfig: Record<string, number> = {
-      maxOutputTokens: options.maxOutputTokens ?? 3000,
-    };
-
-    const response = await requestWithRetry(
-      `${GEMINI_API_URL}/models/${model}:generateContent`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: options.system }],
-          },
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: options.user }],
-            },
-          ],
-          generationConfig,
-        }),
-        signal: controller.signal,
-        cache: "no-store",
-      },
-      MAX_RETRIES,
+    let response = await generateWithModel(
+      model,
+      apiKey,
+      options,
+      controller.signal,
     );
+
+    let usedModel = model;
+
+    if (
+      response.status === 503 &&
+      fallbackModel &&
+      fallbackModel !== model &&
+      !controller.signal.aborted
+    ) {
+      response = await generateWithModel(
+        fallbackModel,
+        apiKey,
+        options,
+        controller.signal,
+      );
+      usedModel = fallbackModel;
+    }
 
     if (!response.ok) {
       const errorBody = await response.text();
 
       throw aiError(
-        `AI provider request failed with status ${response.status} after ${MAX_RETRIES + 1} attempts.`,
+        `AI provider request failed with status ${response.status} after retrying model ${usedModel}.`,
         errorBody.slice(0, 1000),
       );
     }
