@@ -311,3 +311,6 @@ export function getPublicErrorMessage(
 
   return normalized.message;
 }
+export function externalServiceError(message: string, cause?: unknown): AppError {
+  return new AppError("EXTERNAL_SERVICE_ERROR", message, { statusCode: 502, cause });
+}
