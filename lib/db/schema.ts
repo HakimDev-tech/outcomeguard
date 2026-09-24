@@ -1,14 +1,6 @@
-import type {
-  AnalysisStatus,
-  CoverageStatus,
-  EvidenceRelevance,
-  EvidenceType,
-  Recommendation,
-  RequirementImportance,
-  ResourceStatus,
-  ResourceType,
-  Verdict,
-} from "@/types/analysis";
+import type { AnalysisStatus, CoverageStatus, Recommendation, RequirementImportance, Verdict } from "@/types/analysis";
+import type { ResourceStatus, ResourceType } from "@/types/resource";
+import type { EvidenceRelevance, EvidenceType } from "@/types/evidence";
 
 export interface DatabaseGoal {
   id: string;
