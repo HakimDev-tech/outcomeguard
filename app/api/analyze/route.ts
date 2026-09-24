@@ -56,20 +56,14 @@ export async function POST(request: NextRequest) {
       await getGoalById(goalId);
 
     if (!goal) {
-      throw notFoundError(
-        "Goal not found.",
-        { goalId },
-      );
+      throw notFoundError("Goal", goalId);
     }
 
     const resource =
       await getResourceById(resourceId);
 
     if (!resource) {
-      throw notFoundError(
-        "Resource not found.",
-        { resourceId },
-      );
+      throw notFoundError("Resource", resourceId);
     }
 
     if (resource.status !== "ready") {
