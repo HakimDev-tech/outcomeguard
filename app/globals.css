@@ -148,3 +148,27 @@ a { color: inherit; text-decoration: none; }
   .og-coverage-row { grid-template-columns:1fr; }
   .og-confidence { text-align:left; }
 }
+
+
+.og-dashboard { max-width:1040px; margin:0 auto; }
+.og-dashboard-head { display:flex; justify-content:space-between; align-items:end; gap:25px; margin-bottom:32px; }
+.og-dashboard-head h1 { margin:5px 0 7px; font:700 clamp(38px,5vw,55px)/1 Georgia,serif; letter-spacing:-.045em; }
+.og-dashboard-head p:last-child { margin:0; color:var(--muted); font-size:14px; }
+.og-history-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.og-history-list { display:grid; gap:12px; }
+.og-history-card { background:var(--card); border:1px solid var(--line); padding:23px; transition:transform .18s,border-color .18s; }
+.og-history-card:hover { transform:translateY(-2px); border-color:#bdb4a5; }
+.og-history-meta { display:flex; align-items:center; justify-content:space-between; gap:12px; color:#9a958a; font-size:10px; text-transform:uppercase; letter-spacing:.09em; }
+.og-history-status { padding:5px 8px; border:1px solid currentColor; border-radius:999px; font-weight:800; }
+.og-history-card h2 { margin:22px 0 7px; font:700 23px/1.15 Georgia,serif; letter-spacing:-.02em; }
+.og-history-resource { margin:0; color:var(--rust); font-size:12px; }
+.og-history-summary { margin:17px 0 0; color:var(--muted); font-size:13px; line-height:1.6; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+.og-history-footer { display:flex; justify-content:space-between; align-items:center; gap:12px; border-top:1px solid #e4ded3; margin-top:20px; padding-top:14px; color:#9a958a; font-size:11px; }
+.og-history-footer a { color:var(--ink); font-weight:800; }
+.og-empty { min-height:330px; border:1px dashed var(--line); display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:35px; color:var(--muted); }
+.og-empty svg { color:var(--rust); }
+.og-empty h2 { margin:15px 0 6px; font:700 25px Georgia,serif; color:var(--ink); }
+.og-empty p { max-width:440px; margin:0; font-size:13px; line-height:1.6; }
+.og-empty .og-run-button { margin-top:20px; }
+
+@media (max-width:820px){ .og-history-grid{grid-template-columns:1fr;} .og-dashboard-head{align-items:flex-start; flex-direction:column;} }
