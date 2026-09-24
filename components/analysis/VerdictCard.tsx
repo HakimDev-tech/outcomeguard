@@ -1,10 +1,10 @@
 import type {
-  AnalysisVerdict,
+  Verdict,
   Recommendation,
 } from "@/types/analysis";
 
 interface VerdictCardProps {
-  verdict: AnalysisVerdict;
+  verdict: Verdict;
   recommendation?: Recommendation;
   summary?: string;
 }
