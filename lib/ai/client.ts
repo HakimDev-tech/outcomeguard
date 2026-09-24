@@ -99,8 +99,9 @@ export async function generateText(
   try {
     // Gemini 3.8 Flash does not accept legacy temperature.
     const generationConfig: Record<string, unknown> = {
-      maxOutputTokens: options.maxOutputTokens ?? 3000,
+      maxOutputTokens: options.maxOutputTokens ?? 5000,
       responseMimeType: "application/json",
+      thinkingConfig: { thinkingLevel: "low" },
     };
 
     if (options.responseSchema) {
@@ -170,7 +171,7 @@ export async function generateText(
     const data = (await response.json()) as {
       candidates?: Array<{
         content?: {
-          parts?: Array<{ text?: string }>;
+          parts?: Array<{ text?: string; thought?: boolean }>;
         };
         finishReason?: string;
       }>;
@@ -184,8 +185,11 @@ export async function generateText(
       );
     }
 
+    // Gemini 3.x can return thought parts alongside the final answer.
+    // Only non-thought parts belong to the structured JSON payload.
     const text = data.candidates?.[0]?.content?.parts
-      ?.map((part) => part.text ?? "")
+      ?.filter((part) => part.thought !== true)
+      .map((part) => part.text ?? "")
       .join("")
       .trim();
 
