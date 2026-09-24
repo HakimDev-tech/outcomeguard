@@ -15,6 +15,24 @@ import type {
    GOALS
    ============================================================ */
 
+export async function getRecentAnalyses(limit = 20) {
+  const { data, error } = await supabaseAdmin
+    .from("analyses")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(Math.min(limit, 100));
+
+  if (error) {
+    throw new AppError(
+      "Failed to fetch recent analyses.",
+      "DATABASE_ERROR",
+      500,
+      error,
+    );
+  }
+
+  return data ?? [];
+}
 export async function createGoal(input: {
   statement: string;
   context?: string;
