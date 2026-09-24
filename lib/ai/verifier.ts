@@ -122,7 +122,6 @@ export async function verifyAnalysis(input: {
   const response = await generateText({
     system: VERIFIER_SYSTEM_PROMPT,
     user: buildVerifierPrompt(input),
-    temperature: 0,
     maxOutputTokens: 3000,
     responseSchema: verificationJsonSchema,
   });
