@@ -28,8 +28,8 @@ describe("chunkText", () => {
     ).join("\n\n");
 
     const chunks = chunkText(text, {
-      maxChars: 500,
-      overlapChars: 50,
+      chunkSize: 500,
+      overlap: 50,
     });
 
     expect(chunks.length).toBeGreaterThan(1);
@@ -40,8 +40,8 @@ describe("chunkText", () => {
       "First paragraph.\n\nSecond paragraph.\n\nThird paragraph.";
 
     const chunks = chunkText(text, {
-      maxChars: 1000,
-      overlapChars: 100,
+      chunkSize: 1000,
+      overlap: 100,
     });
 
     expect(chunks.length).toBeGreaterThan(0);
@@ -55,8 +55,8 @@ describe("chunkText", () => {
     ).join("\n");
 
     const chunks = chunkText(text, {
-      maxChars: 100,
-      overlapChars: 20,
+      chunkSize: 100,
+      overlap: 20,
     });
 
     chunks.forEach((chunk, index) => {
@@ -69,8 +69,8 @@ describe("chunkText", () => {
       "Introduction.\n\nDatabase design.\n\nAuthentication.";
 
     const chunks = chunkText(text, {
-      maxChars: 1000,
-      overlapChars: 50,
+      chunkSize: 1000,
+      overlap: 50,
     });
 
     for (const chunk of chunks) {
