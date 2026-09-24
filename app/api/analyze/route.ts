@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
           resourceContent: retrieved
             .map((chunk) => chunk.content)
             .join("\n\n"),
-          requirement: requirement.description,
+          requirementDescription: requirement.description,
         });
 
       for (const item of evidence) {
