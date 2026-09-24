@@ -75,6 +75,8 @@ export async function createResource(input: {
   url?: string;
   title: string;
   author?: string;
+  content?: string;
+  status?: DatabaseResource["status"];
 }): Promise<DatabaseResource> {
   const { data, error } = await supabaseAdmin
     .from("resources")
@@ -83,6 +85,8 @@ export async function createResource(input: {
       url: input.url ?? null,
       title: input.title,
       author: input.author ?? null,
+      content: input.content ?? null,
+      status: input.status ?? "pending",
     })
     .select()
     .single();
@@ -147,27 +151,26 @@ export async function updateResourceStatus(
    ============================================================ */
 
 export async function createResourceChunks(
+  resourceId: string,
   chunks: Array<{
-    resourceId: string;
-    content: string;
     chunkIndex: number;
-    startPosition?: number;
-    endPosition?: number;
-    location?: string;
+    content: string;
+    startChar?: number;
+    endChar?: number;
+    tokenEstimate?: number;
     embedding?: number[];
-  }>
-): Promise<void> {
+  }>,
+): Promise<DatabaseResourceChunk[]> {
   if (chunks.length === 0) {
     return;
   }
 
   const rows = chunks.map((chunk) => ({
-    resource_id: chunk.resourceId,
+    resource_id: resourceId,
     content: chunk.content,
     chunk_index: chunk.chunkIndex,
-    start_position: chunk.startPosition ?? null,
-    end_position: chunk.endPosition ?? null,
-    location: chunk.location ?? null,
+    start_position: chunk.startChar ?? null,
+    end_position: chunk.endChar ?? null,
     embedding: chunk.embedding ?? null,
   }));
 
@@ -175,11 +178,8 @@ export async function createResourceChunks(
     .from("resource_chunks")
     .insert(rows);
 
-  if (error) {
-    throw new Error(
-      `Failed to create resource chunks: ${error.message}`
-    );
-  }
+  if (error) throw new Error(`Failed to create resource chunks: ${error.message}`);
+  return (data ?? []) as DatabaseResourceChunk[];
 }
 
 /* ============================================================
@@ -241,10 +241,7 @@ export async function getRequirementsByGoalId(
    ANALYSES
    ============================================================ */
 
-export async function createAnalysis(input: {
-  goalId: string;
-  resourceId: string;
-}): Promise<DatabaseAnalysis> {
+export async function createAnalysis(input: { goalId: string; resourceId: string }): Promise<DatabaseAnalysis> {
   const { data, error } = await supabaseAdmin
     .from("analyses")
     .insert({
