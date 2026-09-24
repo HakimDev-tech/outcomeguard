@@ -92,13 +92,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const analysis =
-      await createAnalysis({
-        goalId,
-        resourceId,
-        status: "processing",
-        requirements,
-      });
+    const analysis = await createAnalysis({ goalId, resourceId });
+    await updateAnalysis(analysis.id, { status: "processing" });
 
     analysisId = analysis.id;
 
@@ -134,14 +129,15 @@ export async function POST(request: NextRequest) {
       for (const item of evidence) {
         const saved =
           await createEvidence({
-            resourceId,
-            requirementId: requirement.id,
+            resource_id: resourceId,
+            requirement_id: requirement.id,
             content: item.content,
-            type: item.type,
+            type: "text",
             relevance: item.relevance,
-            similarity: item.similarity,
+            similarity: undefined,
+            start_position: item.startPosition ?? null,
+            end_position: item.endPosition ?? null,
             confidence: item.confidence,
-            location: item.location,
           });
 
         allEvidence.push(saved);
@@ -151,12 +147,7 @@ export async function POST(request: NextRequest) {
     const coverageResults = [];
 
     for (const requirement of requirements) {
-      const requirementEvidence =
-        allEvidence.filter(
-          (evidence) =>
-            evidence.requirementId ===
-            requirement.id,
-        );
+      const requirementEvidence = allEvidence.filter((evidence) => evidence.requirement_id === requirement.id);
 
       const coverage =
         await evaluateCoverage({
@@ -218,10 +209,8 @@ export async function POST(request: NextRequest) {
           analysisId,
           {
             status: "failed",
-            error:
-              error instanceof Error
-                ? error.message
-                : "Analysis failed.",
+            error_message: error instanceof Error ? error.message : "Analysis failed.",
+            error_code: "INTERNAL_ERROR",
           },
         );
       } catch {
