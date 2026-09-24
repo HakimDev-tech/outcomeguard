@@ -129,6 +129,7 @@ export async function POST(request: NextRequest) {
             type: "text",
             relevance: item.relevance,
             similarity: null,
+            location: item.location ?? null,
             start_position: item.startPosition ?? null,
             end_position: item.endPosition ?? null,
             confidence: item.confidence,
