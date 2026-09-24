@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Compass } from "lucide-react";
 
 export default function EmptyState({
   title = "No analyses yet",
@@ -14,7 +13,7 @@ export default function EmptyState({
 }) {
   return (
     <div className="og-empty">
-      <Compass size={23} />
+      ◌
       <h2>{title}</h2>
       <p>{description}</p>
       <Link href={actionHref} className="og-run-button">{actionLabel}</Link>
