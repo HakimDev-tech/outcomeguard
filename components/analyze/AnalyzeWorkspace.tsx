@@ -97,7 +97,7 @@ export default function AnalyzeWorkspace() {
               <h2>Add the resource</h2>
               <p>Give OutcomeGuard the material you are considering.</p>
             </div>
-            {resourceId && <span className="og-complete"><Check size={14} /> Ready</span>}
+            {resourceId && <span className="og-complete">✓ Ready</span>}
           </div>
 
           {!goalId ? (
