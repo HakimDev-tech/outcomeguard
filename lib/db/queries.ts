@@ -159,7 +159,7 @@ export async function createResourceChunks(
   }>,
 ): Promise<DatabaseResourceChunk[]> {
   if (chunks.length === 0) {
-    return;
+    return [];
   }
 
   const rows = chunks.map((chunk) => ({
@@ -171,9 +171,10 @@ export async function createResourceChunks(
     embedding: chunk.embedding ?? null,
   }));
 
-  const { error } = await supabaseAdmin
+  const { data, error } = await supabaseAdmin
     .from("resource_chunks")
-    .insert(rows);
+    .insert(rows)
+    .select();
 
   if (error) throw new Error(`Failed to create resource chunks: ${error.message}`);
   return (data ?? []) as DatabaseResourceChunk[];
