@@ -26,7 +26,6 @@ const coverageJsonSchema = {
     missingConcepts: {
       type: "ARRAY",
       items: { type: "STRING" },
-      maxItems: 20,
     },
   },
   required: ["status", "confidence", "explanation", "missingConcepts"],
