@@ -5,6 +5,7 @@ import type {
   DatabaseGoal,
   DatabaseRequirement,
   DatabaseResource,
+  DatabaseResourceChunk,
 } from "@/lib/db/schema";
 import type { Requirement, ResourceType, CoverageResult } from "@/types/analysis";
 import { AppError } from "@/lib/utils/errors";
