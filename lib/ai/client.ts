@@ -2,7 +2,12 @@
  * OutcomeGuard
  * Central AI client.
  *
- * Gemini 2.5 Flash with structured JSON output.
+ * Gemini API with structured JSON output.
+ *
+ * Default production model:
+ * gemini-3.8-flash
+ *
+ * Google currently lists gemini-3.8-flash as a stable Gemini Flash model.
  */
 
 import {
@@ -14,7 +19,7 @@ import {
 const DEFAULT_TIMEOUT_MS = 60_000;
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY_MS = 1_000;
-const DEFAULT_MODEL = "gemini-2.5-flash";
+const DEFAULT_MODEL = "gemini-3.8-flash";
 
 const GEMINI_API_URL =
   process.env.AI_API_URL ??
@@ -46,9 +51,11 @@ function getRequiredEnvironmentVariable(name: string): string {
 }
 
 function getAIConfiguration() {
+  const configuredModel = process.env.AI_MODEL?.trim();
+
   return {
     apiKey: getRequiredEnvironmentVariable("AI_API_KEY"),
-    model: process.env.AI_MODEL ?? DEFAULT_MODEL,
+    model: configuredModel || DEFAULT_MODEL,
   };
 }
 
@@ -70,6 +77,8 @@ async function requestWithRetry(
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
     const response = await fetch(url, init);
 
+    // 4xx configuration/request errors are not retryable.
+    // Retrying them only adds latency and obscures the real problem.
     if (response.ok || !isRetryableStatus(response.status)) {
       return response;
     }
@@ -143,10 +152,41 @@ export async function generateText(
 
     if (!response.ok) {
       const errorBody = await response.text();
+      let providerMessage = errorBody.slice(0, 2000);
+
+      try {
+        const parsed = JSON.parse(errorBody) as {
+          error?: {
+            message?: string;
+            status?: string;
+            code?: number;
+          };
+        };
+
+        if (parsed.error?.message) {
+          providerMessage = [
+            parsed.error.message,
+            parsed.error.status
+              ? `status=${parsed.error.status}`
+              : null,
+            parsed.error.code
+              ? `code=${parsed.error.code}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" | ");
+        }
+      } catch {
+        // Keep the raw provider response.
+      }
 
       throw aiError(
-        `AI provider request failed with status ${response.status} after ${MAX_RETRIES + 1} attempts.`,
-        errorBody.slice(0, 1000),
+        `AI provider request failed with status ${response.status}.`,
+        {
+          provider: "google-gemini",
+          model,
+          message: providerMessage,
+        },
       );
     }
 
@@ -157,6 +197,7 @@ export async function generateText(
             text?: string;
           }>;
         };
+        finishReason?: string;
       }>;
       error?: {
         message?: string;
@@ -166,6 +207,10 @@ export async function generateText(
     if (data.error) {
       throw aiError(
         data.error.message ?? "Gemini returned an error.",
+        {
+          provider: "google-gemini",
+          model,
+        },
       );
     }
 
@@ -177,7 +222,10 @@ export async function generateText(
     if (!text) {
       throw aiInvalidResponseError(
         "Gemini returned an empty structured response.",
-        { finishReason: data.candidates?.[0] },
+        {
+          model,
+          finishReason: data.candidates?.[0]?.finishReason,
+        },
       );
     }
 
