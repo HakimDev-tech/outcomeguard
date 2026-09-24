@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 
     const requirements = await parseGoal({
       statement: goal.statement,
-      context: goal.context,
+      context: goal.context ?? undefined,
     });
 
     const savedRequirements =
