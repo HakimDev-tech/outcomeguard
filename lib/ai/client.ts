@@ -1,13 +1,5 @@
 /**
- * OutcomeGuard
- * Central AI client.
- *
- * Gemini API with structured JSON output.
- *
- * Default production model:
- * gemini-3.8-flash
- *
- * Google currently lists gemini-3.8-flash as a stable Gemini Flash model.
+ * OutcomeGuard - central Gemini client.
  */
 
 import {
@@ -28,7 +20,6 @@ const GEMINI_API_URL =
 interface GenerateTextOptions {
   system: string;
   user: string;
-  temperature?: number;
   maxOutputTokens?: number;
   timeoutMs?: number;
   responseSchema?: Record<string, unknown>;
@@ -42,20 +33,16 @@ function getRequiredEnvironmentVariable(name: string): string {
   const value = process.env[name];
 
   if (!value) {
-    throw new Error(
-      `Missing required environment variable: ${name}`,
-    );
+    throw new Error(`Missing required environment variable: ${name}`);
   }
 
   return value;
 }
 
 function getAIConfiguration() {
-  const configuredModel = process.env.AI_MODEL?.trim();
-
   return {
     apiKey: getRequiredEnvironmentVariable("AI_API_KEY"),
-    model: configuredModel || DEFAULT_MODEL,
+    model: process.env.AI_MODEL?.trim() || DEFAULT_MODEL,
   };
 }
 
@@ -77,8 +64,6 @@ async function requestWithRetry(
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
     const response = await fetch(url, init);
 
-    // 4xx configuration/request errors are not retryable.
-    // Retrying them only adds latency and obscures the real problem.
     if (response.ok || !isRetryableStatus(response.status)) {
       return response;
     }
@@ -86,11 +71,10 @@ async function requestWithRetry(
     lastResponse = response;
 
     if (attempt < maxRetries) {
-      const exponentialDelay =
-        INITIAL_RETRY_DELAY_MS * 2 ** attempt;
-      const jitter = Math.floor(Math.random() * 250);
-
-      await sleep(exponentialDelay + jitter);
+      await sleep(
+        INITIAL_RETRY_DELAY_MS * 2 ** attempt +
+          Math.floor(Math.random() * 250),
+      );
     }
   }
 
@@ -105,7 +89,6 @@ export async function generateText(
   options: GenerateTextOptions,
 ): Promise<AIResponse> {
   const { apiKey, model } = getAIConfiguration();
-
   const controller = new AbortController();
 
   const timeout = setTimeout(
@@ -114,8 +97,8 @@ export async function generateText(
   );
 
   try {
+    // Gemini 3.8 Flash does not accept legacy temperature.
     const generationConfig: Record<string, unknown> = {
-      temperature: options.temperature ?? 0,
       maxOutputTokens: options.maxOutputTokens ?? 3000,
       responseMimeType: "application/json",
     };
@@ -166,22 +149,16 @@ export async function generateText(
         if (parsed.error?.message) {
           providerMessage = [
             parsed.error.message,
-            parsed.error.status
-              ? `status=${parsed.error.status}`
-              : null,
-            parsed.error.code
-              ? `code=${parsed.error.code}`
-              : null,
+            parsed.error.status ? `status=${parsed.error.status}` : null,
+            parsed.error.code ? `code=${parsed.error.code}` : null,
           ]
             .filter(Boolean)
             .join(" | ");
         }
-      } catch {
-        // Keep the raw provider response.
-      }
+      } catch {}
 
       throw aiError(
-        `AI provider request failed with status ${response.status}.`,
+        `AI provider request failed with status ${response.status}: ${providerMessage}`,
         {
           provider: "google-gemini",
           model,
@@ -193,24 +170,17 @@ export async function generateText(
     const data = (await response.json()) as {
       candidates?: Array<{
         content?: {
-          parts?: Array<{
-            text?: string;
-          }>;
+          parts?: Array<{ text?: string }>;
         };
         finishReason?: string;
       }>;
-      error?: {
-        message?: string;
-      };
+      error?: { message?: string };
     };
 
     if (data.error) {
       throw aiError(
         data.error.message ?? "Gemini returned an error.",
-        {
-          provider: "google-gemini",
-          model,
-        },
+        { provider: "google-gemini", model },
       );
     }
 
@@ -244,12 +214,6 @@ export async function generateText(
   }
 }
 
-/**
- * Parses JSON returned by Gemini.
- *
- * Structured output is requested at the API level, but this parser
- * remains defensive against fenced or surrounded JSON.
- */
 export function parseAIJson<T>(text: string): T {
   const cleaned = text
     .replace(/^\`\`\`json\s*/i, "")
@@ -265,12 +229,8 @@ export function parseAIJson<T>(text: string): T {
 
     if (objectStart >= 0 && objectEnd > objectStart) {
       try {
-        return JSON.parse(
-          cleaned.slice(objectStart, objectEnd + 1),
-        ) as T;
-      } catch {
-        // Try array extraction below.
-      }
+        return JSON.parse(cleaned.slice(objectStart, objectEnd + 1)) as T;
+      } catch {}
     }
 
     const arrayStart = cleaned.indexOf("[");
@@ -278,12 +238,8 @@ export function parseAIJson<T>(text: string): T {
 
     if (arrayStart >= 0 && arrayEnd > arrayStart) {
       try {
-        return JSON.parse(
-          cleaned.slice(arrayStart, arrayEnd + 1),
-        ) as T;
-      } catch {
-        // Fall through to the useful application error.
-      }
+        return JSON.parse(cleaned.slice(arrayStart, arrayEnd + 1)) as T;
+      } catch {}
     }
 
     throw aiInvalidResponseError(
