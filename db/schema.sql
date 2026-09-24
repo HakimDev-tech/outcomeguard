@@ -1,0 +1,1 @@
+-- OutcomeGuard database schema placeholder.
