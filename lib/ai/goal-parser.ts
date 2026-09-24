@@ -66,7 +66,6 @@ export async function parseGoal(input: {
   const response = await generateText({
     system: GOAL_PARSER_SYSTEM_PROMPT,
     user: buildGoalParserPrompt(input),
-    temperature: 0,
     maxOutputTokens: 3000,
     responseSchema: goalParserJsonSchema,
   });
