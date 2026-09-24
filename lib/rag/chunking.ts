@@ -18,7 +18,7 @@ const DEFAULT_CHUNK_SIZE = 1_200;
 const DEFAULT_OVERLAP = 200;
 const DEFAULT_MIN_CHUNK_SIZE = 100;
 
-function estimateTokens(text: string): number {
+export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
