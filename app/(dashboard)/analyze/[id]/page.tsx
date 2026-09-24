@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, CircleAlert, CircleHelp, ExternalLink, XCircle } from "lucide-react";
 import { notFound } from "next/navigation";
 import { getAnalysisDetails } from "@/lib/db/queries";
 
@@ -7,25 +6,25 @@ const verdicts = {
   sufficient: {
     label: "Sufficient",
     tone: "good",
-    icon: CheckCircle2,
+    icon: "✓",
     description: "The available evidence supports the goal requirements.",
   },
   partially_sufficient: {
     label: "Partially sufficient",
     tone: "warn",
-    icon: CircleAlert,
+    icon: "!",
     description: "The resource helps, but important parts of the goal remain uncovered.",
   },
   insufficient: {
     label: "Not sufficient",
     tone: "bad",
-    icon: XCircle,
+    icon: "×",
     description: "The evidence shows that this resource is missing important requirements.",
   },
   uncertain: {
     label: "Needs review",
     tone: "neutral",
-    icon: CircleHelp,
+    icon: "?",
     description: "The available evidence was not strong enough for a reliable verdict.",
   },
 } as const;
@@ -57,7 +56,7 @@ export default async function AnalysisPage({
       <div className="og-detail">
         <div className="og-detail-top">
           <Link href="/history" className="og-back">
-            <ArrowLeft size={15} /> Back to history
+            ← Back to history
           </Link>
           <Link href="/analyze" className="og-new-link">New analysis</Link>
         </div>
@@ -75,7 +74,7 @@ export default async function AnalysisPage({
           </section>
         ) : verdict ? (
           <section className={`og-verdict tone-${verdict.tone}`}>
-            <div className="og-verdict-icon">{VerdictIcon && <VerdictIcon size={26} />}</div>
+            <div className="og-verdict-icon">{VerdictIcon}</div>
             <div>
               <p className="og-eyebrow">Final verdict</p>
               <h2>{verdict.label}</h2>
@@ -152,7 +151,7 @@ export default async function AnalysisPage({
           </div>
           {details.resource?.url && (
             <a href={details.resource.url} target="_blank" rel="noreferrer" className="og-source-link">
-              Open source <ExternalLink size={15} />
+              Open source ↗
             </a>
           )}
         </section>
