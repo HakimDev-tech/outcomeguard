@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     for (const requirement of requirements) {
       const query = [
         requirement.description,
-        ...requirement.expectedConcepts,
+        ...requirement.expected_concepts,
         ...requirement.keywords,
       ].join(" ");
 
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
             content: item.content,
             type: "text",
             relevance: item.relevance,
-            similarity: undefined,
+            similarity: null,
             start_position: item.startPosition ?? null,
             end_position: item.endPosition ?? null,
             confidence: item.confidence,
@@ -151,8 +151,18 @@ export async function POST(request: NextRequest) {
 
       const coverage =
         await evaluateCoverage({
-          requirement,
-          evidence: requirementEvidence,
+          requirement: {
+            id: requirement.id,
+            description: requirement.description,
+            rationale: requirement.rationale,
+            expectedConcepts: requirement.expected_concepts,
+          },
+          evidence: requirementEvidence.map((evidence) => ({
+            id: evidence.id,
+            content: evidence.content,
+            location: evidence.location ?? undefined,
+            similarity: evidence.similarity ?? undefined,
+          })),
         });
 
       coverageResults.push(coverage);
@@ -175,7 +185,7 @@ export async function POST(request: NextRequest) {
         proposedVerdict:
           proposedVerdict.verdict,
         proposedRecommendation:
-          proposedVerdict.recommendation,
+          proposedVerdict.recommendation.reason,
       });
 
     const completed = await updateAnalysis(analysis.id, {
