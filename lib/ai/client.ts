@@ -110,6 +110,10 @@ export async function generateText(
   );
 
   try {
+    const generationConfig: Record<string, number> = {
+      maxOutputTokens: options.maxOutputTokens ?? 3000,
+    };
+
     const response = await requestWithRetry(
       `${GEMINI_API_URL}/models/${model}:generateContent`,
       {
@@ -128,10 +132,7 @@ export async function generateText(
               parts: [{ text: options.user }],
             },
           ],
-          generationConfig: {
-            temperature: options.temperature ?? 0,
-            maxOutputTokens: options.maxOutputTokens ?? 3000,
-          },
+          generationConfig,
         }),
         signal: controller.signal,
         cache: "no-store",
