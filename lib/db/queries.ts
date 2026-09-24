@@ -130,6 +130,8 @@ function mapAnalysisRow(row: any): Analysis {
     relevantDurationSeconds: row.relevant_duration_seconds ?? undefined,
     createdAt: row.created_at,
     completedAt: row.completed_at ?? undefined,
+    goalStatement: goal?.statement ?? undefined,
+    resourceTitle: row.resources?.title ?? undefined,
     error: row.error_code
       ? {
           code: row.error_code,
