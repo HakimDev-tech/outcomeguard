@@ -63,7 +63,7 @@ function validateOptions(
   }
 
   return {
-    resourceId: options.resourceId,
+    resourceId: options.resourceId ?? undefined,
     limit,
     minSimilarity,
   };
