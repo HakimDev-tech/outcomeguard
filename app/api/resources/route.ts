@@ -71,8 +71,8 @@ export async function POST(request: NextRequest) {
         await fetchYouTubeResource(input.url);
 
       title = youtube.metadata.title;
-      author = youtube.metadata.author;
-      url = youtube.metadata.url;
+      author = youtube.metadata.author ?? null;
+      url = youtube.metadata.url ?? null;
       content = youtube.transcript;
     } else if (input.type === "text") {
       if (!input.content) {
@@ -90,8 +90,8 @@ export async function POST(request: NextRequest) {
         });
 
       title = text.title;
-      author = text.author;
-      url = text.url;
+      author = text.author ?? null;
+      url = text.url ?? null;
       content = text.content;
     } else {
       throw resourceError(
