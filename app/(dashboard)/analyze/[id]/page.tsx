@@ -119,7 +119,7 @@ export default async function AnalysisPage({
           <div className="og-coverage-list">
             {details.analysis.requirements.map((requirement) => {
               const result = details.coverageResults.find(
-                (item) => item.requirementId === requirement.id,
+                (item: (typeof details.coverageResults)[number]) => item.requirementId === requirement.id,
               );
               const state = result ? coverage[result.status as keyof typeof coverage] : coverage.uncertain;
 
