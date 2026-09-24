@@ -7,7 +7,8 @@ import type {
   DatabaseResource,
   DatabaseResourceChunk,
 } from "@/lib/db/schema";
-import type { Requirement, ResourceType, CoverageResult } from "@/types/analysis";
+import type { Requirement, CoverageResult } from "@/types/analysis";
+import type { ResourceType } from "@/types/resource";
 import { AppError } from "@/lib/utils/errors";
 /* ============================================================
    GOALS
@@ -21,12 +22,7 @@ export async function getRecentAnalyses(limit = 20) {
     .limit(Math.min(limit, 100));
 
   if (error) {
-    throw new AppError(
-      "Failed to fetch recent analyses.",
-      "DATABASE_ERROR",
-      500,
-      error,
-    );
+    throw new AppError("DATABASE_ERROR", "Failed to fetch recent analyses.", { statusCode: 500, cause: error });
   }
 
   return data ?? [];
