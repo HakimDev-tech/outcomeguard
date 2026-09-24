@@ -1,0 +1,38 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 256 256"
+  role="img"
+  aria-labelledby="title desc"
+>
+  <title id="title">OutcomeGuard</title>
+  <desc id="desc">
+    OutcomeGuard shield logo representing verified learning outcomes.
+  </desc>
+
+  <rect width="256" height="256" rx="48" fill="#111827"/>
+
+  <path
+    d="M128 42
+       L195 67
+       V119
+       C195 163 168 196 128 214
+       C88 196 61 163 61 119
+       V67
+       Z"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="14"
+    stroke-linejoin="round"
+  />
+
+  <path
+    d="M91 128
+       L116 153
+       L168 101"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="14"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>
