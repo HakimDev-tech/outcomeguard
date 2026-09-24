@@ -1,82 +1,54 @@
 import Link from "next/link";
-import { Button } from "@/components/ui";
+import { ArrowRight, Check, Clock3, ShieldCheck } from "lucide-react";
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-white">
-      <section className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-6 py-20">
-        <div className="max-w-3xl">
-          <div className="mb-6 inline-flex rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-sm text-gray-600">
-            Evidence-backed resource verification
-          </div>
+    <main className="og-home">
+      <header className="og-nav">
+        <div className="og-nav-inner">
+          <Link href="/" className="og-brand">
+            <span className="og-mark"><ShieldCheck size={17} strokeWidth={2.2} /></span>
+            <span>OutcomeGuard</span>
+          </Link>
+          <nav className="og-nav-links">
+            <Link href="/analyze">Analyze</Link>
+            <Link href="/history"><Clock3 size={15} /> History</Link>
+          </nav>
+        </div>
+      </header>
 
-          <h1 className="text-balance text-5xl font-bold tracking-tight text-gray-950 sm:text-6xl">
-            Know whether a resource can actually achieve your goal.
-          </h1>
-
-          <p className="mt-6 max-w-2xl text-pretty text-lg leading-8 text-gray-600">
-            OutcomeGuard analyzes your goal, extracts its requirements,
-            examines a learning resource, and identifies what it covers,
-            what it misses, and whether it is sufficient.
+      <section className="og-hero">
+        <div className="og-hero-copy">
+          <div className="og-kicker"><span /> Evidence before effort</div>
+          <h1>Stop asking whether a resource is good. Ask whether it gets <em>you</em> there.</h1>
+          <p>
+            OutcomeGuard checks a learning resource against the specific outcome
+            you want to achieve — requirement by requirement, with evidence.
           </p>
-
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/analyze">
-              <Button>Analyze a resource</Button>
+          <div className="og-hero-actions">
+            <Link href="/analyze" className="og-run-button">
+              Analyze a resource <ArrowRight size={17} />
             </Link>
-
-            <Link href="/history">
-              <Button variant="secondary">View history</Button>
-            </Link>
+            <Link href="/history" className="og-text-link">View previous analyses</Link>
           </div>
         </div>
 
-        <div className="mt-20 grid gap-4 sm:grid-cols-3">
-          <Feature
-            number="01"
-            title="Define the goal"
-            description="Describe what you actually want to achieve."
-          />
-
-          <Feature
-            number="02"
-            title="Analyze the resource"
-            description="OutcomeGuard extracts evidence and maps it to your requirements."
-          />
-
-          <Feature
-            number="03"
-            title="Get a verdict"
-            description="See covered, partial, and missing requirements before investing your time."
-          />
+        <div className="og-hero-note">
+          <div className="og-note-top"><span>OUTCOME</span><span>01</span></div>
+          <p>Build a production-ready Next.js CRUD application.</p>
+          <div className="og-note-line" />
+          <div className="og-note-row"><Check size={15} /> CRUD + database</div>
+          <div className="og-note-row"><Check size={15} /> Authentication</div>
+          <div className="og-note-row og-note-missing">× Testing is not covered</div>
+          <div className="og-note-footer">VERDICT · NOT SUFFICIENT</div>
         </div>
       </section>
+
+      <section className="og-principles">
+        <article><span>01</span><h2>Decompose</h2><p>Turn a vague outcome into concrete requirements.</p></article>
+        <article><span>02</span><h2>Trace</h2><p>Retrieve evidence from the actual resource.</p></article>
+        <article><span>03</span><h2>Verify</h2><p>Check the conclusion before you spend the time.</p></article>
+      </section>
     </main>
-  );
-}
-
-function Feature({
-  number,
-  title,
-  description,
-}: {
-  number: string;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="rounded-xl border border-gray-200 bg-gray-50 p-6">
-      <span className="text-xs font-semibold tracking-widest text-gray-400">
-        {number}
-      </span>
-
-      <h2 className="mt-4 text-lg font-semibold text-gray-950">
-        {title}
-      </h2>
-
-      <p className="mt-2 text-sm leading-6 text-gray-600">
-        {description}
-      </p>
-    </div>
   );
 }
