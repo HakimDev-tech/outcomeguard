@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ArrowRight, Check, Clock3, ShieldCheck } from "lucide-react";
 
 export default function HomePage() {
   return (
@@ -7,12 +6,12 @@ export default function HomePage() {
       <header className="og-nav">
         <div className="og-nav-inner">
           <Link href="/" className="og-brand">
-            <span className="og-mark"><ShieldCheck size={17} strokeWidth={2.2} /></span>
+            <span className="og-mark">OG</span>
             <span>OutcomeGuard</span>
           </Link>
           <nav className="og-nav-links">
             <Link href="/analyze">Analyze</Link>
-            <Link href="/history"><Clock3 size={15} /> History</Link>
+            <Link href="/history">History</Link>
           </nav>
         </div>
       </header>
@@ -27,7 +26,7 @@ export default function HomePage() {
           </p>
           <div className="og-hero-actions">
             <Link href="/analyze" className="og-run-button">
-              Analyze a resource <ArrowRight size={17} />
+              Analyze a resource →
             </Link>
             <Link href="/history" className="og-text-link">View previous analyses</Link>
           </div>
@@ -37,7 +36,7 @@ export default function HomePage() {
           <div className="og-note-top"><span>OUTCOME</span><span>01</span></div>
           <p>Build a production-ready Next.js CRUD application.</p>
           <div className="og-note-line" />
-          <div className="og-note-row"><Check size={15} /> CRUD + database</div>
+          <div className="og-note-row">✓ CRUD + database</div>
           <div className="og-note-row"><Check size={15} /> Authentication</div>
           <div className="og-note-row og-note-missing">× Testing is not covered</div>
           <div className="og-note-footer">VERDICT · NOT SUFFICIENT</div>
