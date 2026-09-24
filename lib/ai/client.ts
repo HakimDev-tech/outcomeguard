@@ -1,8 +1,8 @@
 /**
  * OutcomeGuard
- * Central AI client
+ * Central AI client.
  *
- * Uses Gemini 2.5 Flash for reliable text generation.
+ * Gemini 2.5 Flash with structured JSON output.
  */
 
 import {
@@ -26,6 +26,7 @@ interface GenerateTextOptions {
   temperature?: number;
   maxOutputTokens?: number;
   timeoutMs?: number;
+  responseSchema?: Record<string, unknown>;
 }
 
 interface AIResponse {
@@ -91,12 +92,6 @@ async function requestWithRetry(
   return lastResponse;
 }
 
-/**
- * Generates text using Gemini 2.5 Flash.
- *
- * Transient 408, 429 and 5xx responses are retried
- * with exponential backoff and jitter.
- */
 export async function generateText(
   options: GenerateTextOptions,
 ): Promise<AIResponse> {
@@ -110,6 +105,16 @@ export async function generateText(
   );
 
   try {
+    const generationConfig: Record<string, unknown> = {
+      temperature: options.temperature ?? 0,
+      maxOutputTokens: options.maxOutputTokens ?? 3000,
+      responseMimeType: "application/json",
+    };
+
+    if (options.responseSchema) {
+      generationConfig.responseSchema = options.responseSchema;
+    }
+
     const response = await requestWithRetry(
       `${GEMINI_API_URL}/models/${model}:generateContent`,
       {
@@ -128,11 +133,7 @@ export async function generateText(
               parts: [{ text: options.user }],
             },
           ],
-          generationConfig: {
-            temperature: options.temperature ?? 0,
-            maxOutputTokens: options.maxOutputTokens ?? 3000,
-            responseMimeType: "application/json",
-          },
+          generationConfig,
         }),
         signal: controller.signal,
         cache: "no-store",
@@ -173,22 +174,18 @@ export async function generateText(
       .join("")
       .trim();
 
-    if (typeof text !== "string" || text.length === 0) {
-      throw aiInvalidResponseError();
+    if (!text) {
+      throw aiInvalidResponseError(
+        "Gemini returned an empty structured response.",
+        { finishReason: data.candidates?.[0] },
+      );
     }
 
     return { text };
   } catch (error) {
     if (
-      error instanceof DOMException &&
-      error.name === "AbortError"
-    ) {
-      throw aiTimeoutError();
-    }
-
-    if (
-      error instanceof Error &&
-      error.name === "AbortError"
+      (error instanceof DOMException && error.name === "AbortError") ||
+      (error instanceof Error && error.name === "AbortError")
     ) {
       throw aiTimeoutError();
     }
@@ -200,46 +197,50 @@ export async function generateText(
 }
 
 /**
- * Parses a JSON response returned by the AI.
+ * Parses JSON returned by Gemini.
+ *
+ * Structured output is requested at the API level, but this parser
+ * remains defensive against fenced or surrounded JSON.
  */
 export function parseAIJson<T>(text: string): T {
+  const cleaned = text
+    .replace(/^\`\`\`json\s*/i, "")
+    .replace(/^\`\`\`\s*/i, "")
+    .replace(/\s*\`\`\`$/i, "")
+    .trim();
+
   try {
-    const cleaned = text
-      .replace(/^\`\`\`json\s*/i, "")
-      .replace(/^\`\`\`\s*/i, "")
-      .replace(/\s*\`\`\`$/i, "")
-      .trim();
+    return JSON.parse(cleaned) as T;
+  } catch {
+    const objectStart = cleaned.indexOf("{");
+    const objectEnd = cleaned.lastIndexOf("}");
 
-    try {
-      return JSON.parse(cleaned) as T;
-    } catch {
-      const firstObject = cleaned.indexOf("{");
-      const lastObject = cleaned.lastIndexOf("}");
-
-      if (firstObject >= 0 && lastObject > firstObject) {
+    if (objectStart >= 0 && objectEnd > objectStart) {
+      try {
         return JSON.parse(
-          cleaned.slice(firstObject, lastObject + 1),
+          cleaned.slice(objectStart, objectEnd + 1),
         ) as T;
+      } catch {
+        // Try array extraction below.
       }
-
-      const firstArray = cleaned.indexOf("[");
-      const lastArray = cleaned.lastIndexOf("]");
-
-      if (firstArray >= 0 && lastArray > firstArray) {
-        return JSON.parse(
-          cleaned.slice(firstArray, lastArray + 1),
-        ) as T;
-      }
-
-      throw new Error("No JSON object or array found.");
     }
-  } catch (error) {
+
+    const arrayStart = cleaned.indexOf("[");
+    const arrayEnd = cleaned.lastIndexOf("]");
+
+    if (arrayStart >= 0 && arrayEnd > arrayStart) {
+      try {
+        return JSON.parse(
+          cleaned.slice(arrayStart, arrayEnd + 1),
+        ) as T;
+      } catch {
+        // Fall through to the useful application error.
+      }
+    }
+
     throw aiInvalidResponseError(
       "The AI provider returned invalid JSON.",
-      {
-        rawResponse: text,
-        cause: error,
-      },
+      { rawResponse: text.slice(0, 4000) },
     );
   }
 }
