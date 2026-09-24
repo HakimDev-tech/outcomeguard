@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
     const updatedResource =
       await updateResource(resource.id, {
         title,
-        author,
+        author: author ?? undefined,
         url: url ?? undefined,
         content,
         status: "ready",
