@@ -69,7 +69,6 @@ export async function analyzeResource(input: {
   const response = await generateText({
     system: RESOURCE_ANALYZER_SYSTEM_PROMPT,
     user: buildResourceAnalyzerPrompt(input),
-    temperature: 0,
     maxOutputTokens: 4000,
     responseSchema: resourceAnalysisJsonSchema,
   });
