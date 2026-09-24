@@ -131,6 +131,7 @@ export async function generateText(
           generationConfig: {
             temperature: options.temperature ?? 0,
             maxOutputTokens: options.maxOutputTokens ?? 3000,
+            responseMimeType: "application/json",
           },
         }),
         signal: controller.signal,
@@ -209,7 +210,29 @@ export function parseAIJson<T>(text: string): T {
       .replace(/\s*\`\`\`$/i, "")
       .trim();
 
-    return JSON.parse(cleaned) as T;
+    try {
+      return JSON.parse(cleaned) as T;
+    } catch {
+      const firstObject = cleaned.indexOf("{");
+      const lastObject = cleaned.lastIndexOf("}");
+
+      if (firstObject >= 0 && lastObject > firstObject) {
+        return JSON.parse(
+          cleaned.slice(firstObject, lastObject + 1),
+        ) as T;
+      }
+
+      const firstArray = cleaned.indexOf("[");
+      const lastArray = cleaned.lastIndexOf("]");
+
+      if (firstArray >= 0 && lastArray > firstArray) {
+        return JSON.parse(
+          cleaned.slice(firstArray, lastArray + 1),
+        ) as T;
+      }
+
+      throw new Error("No JSON object or array found.");
+    }
   } catch (error) {
     throw aiInvalidResponseError(
       "The AI provider returned invalid JSON.",
