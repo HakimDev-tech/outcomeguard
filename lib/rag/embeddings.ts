@@ -5,11 +5,11 @@ import {
 
 const EMBEDDING_API_URL =
   process.env.AI_EMBEDDING_API_URL ??
-  "https://api.openai.com/v1/embeddings";
+  "https://generativelanguage.googleapis.com/v1beta";
 
 const EMBEDDING_MODEL =
   process.env.AI_EMBEDDING_MODEL ??
-  "text-embedding-3-small";
+  "gemini-embedding-001";
 
 const EMBEDDING_DIMENSIONS = Number(
   process.env.AI_EMBEDDING_DIMENSIONS ?? "1536",
@@ -18,9 +18,8 @@ const EMBEDDING_DIMENSIONS = Number(
 const EMBEDDING_TIMEOUT_MS = 30_000;
 
 interface EmbeddingResponse {
-  data?: Array<{
-    embedding?: number[];
-    index?: number;
+  embeddings?: Array<{
+    values?: number[];
   }>;
   error?: {
     message?: string;
@@ -77,6 +76,9 @@ function validateEmbedding(
 
 async function requestEmbeddings(
   inputs: string[],
+  taskType:
+    | "RETRIEVAL_DOCUMENT"
+    | "RETRIEVAL_QUERY",
 ): Promise<number[][]> {
   if (inputs.length === 0) {
     return [];
@@ -87,24 +89,34 @@ async function requestEmbeddings(
   let response: Response;
 
   try {
-    response = await fetch(EMBEDDING_API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
+    response = await fetch(
+      `${EMBEDDING_API_URL}/models/${EMBEDDING_MODEL}:batchEmbedContents`,
+      {
+        method: "POST",
+        headers: {
+          "x-goog-api-key": apiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          requests: inputs.map((content) => ({
+            model: `models/${EMBEDDING_MODEL}`,
+            content: {
+              parts: [{ text: content }],
+            },
+            taskType,
+            outputDimensionality:
+              EMBEDDING_DIMENSIONS,
+          })),
+        }),
+        signal: AbortSignal.timeout(
+          EMBEDDING_TIMEOUT_MS,
+        ),
+        cache: "no-store",
       },
-      body: JSON.stringify({
-        model: EMBEDDING_MODEL,
-        input: inputs,
-      }),
-      signal: AbortSignal.timeout(
-        EMBEDDING_TIMEOUT_MS,
-      ),
-      cache: "no-store",
-    });
+    );
   } catch (error) {
     throw externalServiceError(
-      "Failed to connect to the embedding provider.",
+      "Failed to connect to the Gemini embedding provider.",
       {
         cause:
           error instanceof Error
@@ -118,7 +130,7 @@ async function requestEmbeddings(
     const body = await response.text().catch(() => "");
 
     throw externalServiceError(
-      "Embedding provider returned an error.",
+      "Gemini embedding provider returned an error.",
       {
         status: response.status,
         body: body.slice(0, 500),
@@ -133,39 +145,35 @@ async function requestEmbeddings(
       (await response.json()) as EmbeddingResponse;
   } catch {
     throw embeddingError(
-      "Embedding provider returned invalid JSON.",
+      "Gemini embedding provider returned invalid JSON.",
     );
   }
 
   if (data.error) {
     throw embeddingError(
       data.error.message ??
-        "Embedding provider returned an error.",
+        "Gemini embedding provider returned an error.",
     );
   }
 
-  if (!Array.isArray(data.data)) {
+  if (!Array.isArray(data.embeddings)) {
     throw embeddingError(
-      "Embedding provider returned no embeddings.",
+      "Gemini embedding provider returned no embeddings.",
     );
   }
 
-  const sorted = [...data.data].sort(
-    (a, b) => (a.index ?? 0) - (b.index ?? 0),
-  );
-
-  if (sorted.length !== inputs.length) {
+  if (data.embeddings.length !== inputs.length) {
     throw embeddingError(
-      "Embedding provider returned an unexpected number of vectors.",
+      "Gemini embedding provider returned an unexpected number of vectors.",
       {
         expected: inputs.length,
-        received: sorted.length,
+        received: data.embeddings.length,
       },
     );
   }
 
-  return sorted.map((item) =>
-    validateEmbedding(item.embedding),
+  return data.embeddings.map((item) =>
+    validateEmbedding(item.values),
   );
 }
 
@@ -181,7 +189,10 @@ export async function createEmbedding(
   }
 
   const [embedding] =
-    await requestEmbeddings([normalized]);
+    await requestEmbeddings(
+      [normalized],
+      "RETRIEVAL_QUERY",
+    );
 
   return embedding;
 }
@@ -199,7 +210,10 @@ export async function createEmbeddings(
     );
   }
 
-  return requestEmbeddings(normalized);
+  return requestEmbeddings(
+    normalized,
+    "RETRIEVAL_DOCUMENT",
+  );
 }
 
 export function getEmbeddingConfiguration(): {
